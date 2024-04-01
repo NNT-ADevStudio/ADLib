@@ -9,7 +9,7 @@ using Newtonsoft.Json.Linq;
 
 namespace ADLib.Controllers
 {
-    internal class UserADController
+    public class UserADController
     {
         private const string GraphResourceUri = "https://graph.microsoft.com/v1.0/";
 

@@ -1,6 +1,6 @@
 ﻿namespace ADLib.Classes
 {
-    internal class UserAD
+    public class UserAD
     {
         public string DisplayName { get; }
 

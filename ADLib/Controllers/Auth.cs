@@ -1,15 +1,13 @@
 ﻿using Microsoft.Identity.Client;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ADLib.Controllers
 {
-    internal class Auth
+    public class Auth
     {
         public string ClientId { get; }
 
@@ -17,14 +15,19 @@ namespace ADLib.Controllers
 
         public string AccessToken { get; private set; }
 
-        private readonly string[] scopes = new string[] { "user.read" };
+        public string[] Scopes { get; } 
 
         readonly IPublicClientApplication app;
 
-        public Auth(string clientId, string tenantId, string redict = "http://localhost")
+        readonly string cacheFilePath = Path.Combine(
+                                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                     $"msal_cache_{AppDomain.CurrentDomain}.dat");
+
+        public Auth(string clientId, string[] scopes, string tenantId, string redict = "http://localhost")
         {
             ClientId = clientId;
             TenantId = tenantId;
+            Scopes = scopes;
 
             app = PublicClientApplicationBuilder.Create(ClientId)
                .WithRedirectUri(redict)
@@ -33,21 +36,9 @@ namespace ADLib.Controllers
                .Build();
         }
 
-        public void CreateCacheHelper()
+        public void CreateCacheHelper(string datPath = null)
         {
-            string cacheFilePath =
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    $"msal_cache_{AppDomain.CurrentDomain}.dat");
-
-            var cacheHelper = new TokenCacheHelper(cacheFilePath);
-            app.UserTokenCache.SetBeforeAccess(cacheHelper.BeforeAccessNotification);
-            app.UserTokenCache.SetAfterAccess(cacheHelper.AfterAccessNotification);
-            app.UserTokenCache.SetBeforeWrite(cacheHelper.BeforeWriteNotification);
-        }
-
-        public void CreateCacheHelper(string datPath)
-        {
+            if(datPath == null) datPath = cacheFilePath;
             var cacheHelper = new TokenCacheHelper(datPath);
             app.UserTokenCache.SetBeforeAccess(cacheHelper.BeforeAccessNotification);
             app.UserTokenCache.SetAfterAccess(cacheHelper.AfterAccessNotification);
@@ -62,7 +53,7 @@ namespace ADLib.Controllers
             try
             {
                 // Если в кэше есть аккаунт, попытаемся получить токен без интерактивного входа
-                var silentResult = await app.AcquireTokenSilent(scopes, firstAccount)
+                var silentResult = await app.AcquireTokenSilent(Scopes, firstAccount)
                                             .ExecuteAsync();
                 AccessToken = silentResult.AccessToken;
                 return silentResult.AccessToken;
@@ -72,7 +63,7 @@ namespace ADLib.Controllers
                 // Если не удалось получить токен немого, запрашиваем интерактивный вход
                 try
                 {
-                    var interactiveResult = await app.AcquireTokenInteractive(scopes)
+                    var interactiveResult = await app.AcquireTokenInteractive(Scopes)
                                                      .WithAccount(firstAccount)
                                                      .ExecuteAsync();
                     AccessToken = interactiveResult.AccessToken;
@@ -82,7 +73,7 @@ namespace ADLib.Controllers
                 {
                     try
                     {
-                        var result = app.AcquireTokenInteractive(scopes).ExecuteAsync().Result;
+                        var result = app.AcquireTokenInteractive(Scopes).ExecuteAsync().Result;
                         AccessToken = result.AccessToken;
                         return result.AccessToken;
                     }
